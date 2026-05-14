@@ -26,7 +26,8 @@ router.register(r'search/patients', PatientSearchViewSet, basename='patient-sear
 router.register(r'search/donors', DonorSearchViewSet, basename='donor-search')
 router.register(r'ministry/dashboard', MinistryDashboardViewSet, basename='ministry-dashboard')
 router.register(r'ministry-alerts', MinistryAlertViewSet, basename='ministry-alerts')
-
+router.register(r'create-patient', PatientCreateViewSet, basename='create-patient')
+router.register(r'create-donor', DonorCreateViewSet, basename='create-donor')
 
 
 urlpatterns = [
@@ -40,7 +41,8 @@ urlpatterns = [
     path('login/', UnifiedLoginView.as_view(), name='unified-login'),
     path('hospital/change-password/', ChangeHospitalPasswordView.as_view(), name='change_password'),
     path('ministry/register/', MinistryRegisterView.as_view()),
-     path('send-ministry-alert/', SendMinistryAlertView.as_view()),
+    path('send-ministry-alert/', SendMinistryAlertView.as_view()),
+    # path('users/create-full/', FullUserCreateView.as_view(), name='full-user-create'),
 
     # path('users/search_by_organ/', search_users_by_organ, name='search_by_organ'),
 ]
