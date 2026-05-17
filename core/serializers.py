@@ -339,6 +339,7 @@ class SurgeryReportSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='surgery.doctor.name', read_only=True)
     hospital_name = serializers.CharField(source='surgery.hospital.name', read_only=True)
     surgery_detail = serializers.SerializerMethodField(read_only=True)  # بدل الـ nested كامل
+    vitals = serializers.SerializerMethodField(read_only=True)
 
     # اختيار الجراحة عند الإنشاء بالاسم
     surgery_number = serializers.SlugRelatedField(
@@ -381,8 +382,17 @@ class SurgeryReportSerializer(serializers.ModelSerializer):
             'respiratory_rate',
             'oxygen_saturation',
             'recorded_at',
+            'vitals',
 
         ]
+    def get_vitals(self, obj):
+        return [
+            {"key": "blood_pressure",    "label": "Blood Pressure",    "value": obj.blood_pressure,    "unit": "mmHg"},
+            {"key": "temperature_c",     "label": "Temperature",       "value": obj.temperature_c,     "unit": "°C"},
+            {"key": "heart_rate",        "label": "Heart Rate",        "value": obj.heart_rate,        "unit": "bpm"},
+            {"key": "respiratory_rate",  "label": "Respiratory Rate",  "value": obj.respiratory_rate,  "unit": "breaths/min"},
+            {"key": "oxygen_saturation", "label": "Oxygen Saturation", "value": obj.oxygen_saturation, "unit": "%"},
+        ]    
 
     def get_surgery_detail(self, obj):
         # ممكن تعرض معلومات مختصرة عن الجراحة بدل الـ nested serializer الكامل
