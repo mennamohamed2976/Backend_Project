@@ -1,3 +1,4 @@
+# models.py
 import  uuid
 import binascii, os
 from django.db import models
@@ -48,10 +49,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     BLOOD_TYPE_CHOICES = (
-        ('A', 'A'),
-        ('B', 'B'),
-        ('O', 'O'),
-        ('AB', 'AB'),
+        ('A+', 'A+'), ('A-', 'A-'),
+        ('B+', 'B+'), ('B-', 'B-'),
+        ('O+', 'O+'), ('O-', 'O-'),
+        ('AB+', 'AB+'), ('AB-', 'AB-'),
     )
 
     GENDER_CHOICES = (
@@ -82,12 +83,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     HLA_DR_2 = models.CharField(max_length=10, blank=True, null=True)
 
     PRA = models.FloatField(null=True, blank=True)
-
     CMV_status = models.BooleanField(default=False)
     EBV_status = models.BooleanField(default=False)
 
     updated_at = models.DateTimeField(auto_now=True)
-
 
     supervisor_doctor = models.ForeignKey(
         'Doctor',
@@ -98,7 +97,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     hospital = models.ForeignKey(
-        'Hospital', null=True, blank=True,
+        'Hospital', null=True, blank=False,
         on_delete=models.SET_NULL, related_name='users'
     )
 
@@ -108,7 +107,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = 'national_id'
-    REQUIRED_FIELDS = ['first_name', 'last_name','hospital']
+    REQUIRED_FIELDS = ['first_name', 'last_name']
 
     objects = CustomUserManager()
 
@@ -130,21 +129,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class OrganType(models.TextChoices):
-    KIDNEY = 'kidney', 'kidney'
-    KIDNEY_RIGHT = 'kidney_right', 'kidney_right'
-    KIDNEY_LEFT = 'kidney_left', 'kidney_left'
-
-    LIVER = 'liver', 'liver'
-    LIVER_LOBE = 'liver_lobe', 'liver_lobe'
-
-    HEART = 'heart','heart'
-
-    LUNG_RIGHT = 'lung_right', 'lung_right'
-    LUNG_LOBE = 'lung_lobe', 'lung_lobe'
-
-    PANCREAS = 'pancreas', 'pancreas'
-    LUNG_LEFT = 'lung_left', 'lung_left'
-    PANCREAS_SEGMENT = 'pancreas_segment', 'pancreas_segment'
+    كلية_يمنى = 'كلية يمنى', 'كلية يمنى'
+    كلية_يسرى = 'كلية يسرى', 'كلية يسرى'
+    كبد = 'كبد', 'كبد'
 
 
 # Hospital & Doctor
@@ -232,16 +219,7 @@ class UserChronicDisease(models.Model):
 
 
 # Patient & Donor Profiles
-
 # class PatientMedicalProfile(models.Model):
-
-#     URGENCY_CHOICES = (
-#         ('low', 'Low'),
-#         ('medium', 'Medium'),
-#         ('high', 'High'),
-#         ('critical', 'Critical'),
-#     )
-
 #     patient = models.OneToOneField(
 #         User,
 #         on_delete=models.CASCADE,
@@ -249,60 +227,27 @@ class UserChronicDisease(models.Model):
 #     )
 #     organ_needed = models.CharField(
 #         max_length=20,
-#         choices=OrganType.choices,
-#         default='liver'
+#         choices=OrganType.choices, default='كبد'
 #     )
-
-#     # ✅ New fields
-#     urgency_level = models.CharField(
-#         max_length=20,
-#         choices=URGENCY_CHOICES,
-#         null=True,
-#         blank=True,
-#         help_text="Urgency level of the transplant"
-#     )
-#     waitlist_time_days = models.PositiveIntegerField(
-#         null=True,
-#         blank=True,
-#         help_text="Number of days the patient has been on the waiting list"
-#     )
-#     dialysis_duration_days = models.PositiveIntegerField(
-#         null=True,
-#         blank=True,
-#         help_text="Duration of dialysis in days (kidney patients only)"
-#     )
-#     MELD_score = models.FloatField(
-#         null=True,
-#         blank=True,
-#         help_text="Model for End-Stage Liver Disease score (liver patients only)"
-#     )
-#     lung_severity_score = models.FloatField(
-#         null=True,
-#         blank=True,
-#         help_text="Lung severity score (lung patients only)"
-#     )
-
-#     def clean(self):
-#         KIDNEY_ORGANS = {'kidney', 'kidney_right', 'kidney_left'}
-#         LIVER_ORGANS = {'liver', 'liver_lobe'}
-#         LUNG_ORGANS = {'lung_right', 'lung_lobe'}
-
-#         if self.dialysis_duration_days is not None and self.organ_needed not in KIDNEY_ORGANS:
-#             raise ValidationError("dialysis_duration_days is only applicable for kidney patients.")
-
-#         if self.MELD_score is not None and self.organ_needed not in LIVER_ORGANS:
-#             raise ValidationError("MELD_score is only applicable for liver patients.")
-
-#         if self.lung_severity_score is not None and self.organ_needed not in LUNG_ORGANS:
-#             raise ValidationError("lung_severity_score is only applicable for lung patients.")
-
-#     def save(self, *args, **kwargs):
-#         self.full_clean()
-#         super().save(*args, **kwargs)
 
 #     def __str__(self):
 #         return f"{self.patient} needs {self.organ_needed}"
 
+
+# class DonorMedicalProfile(models.Model):
+#     donor = models.OneToOneField(
+#         User,
+#         on_delete=models.CASCADE,
+#         related_name='donor_profile'
+#     )
+#     organ_available = models.CharField(
+#         max_length=20,
+#         choices=OrganType.choices,
+#         default='كبد'
+#     )
+
+#     def __str__(self):
+#         return f"{self.donor} donates {self.organ_available}"
 
 class PatientMedicalProfile(models.Model):
 
@@ -479,8 +424,6 @@ class DonorMedicalProfile(models.Model):
 
     def __str__(self):
         return f"{self.donor} donates {self.organ_available}"
-    
-
 
 
 # Appointment
@@ -619,8 +562,8 @@ class OrganMatching(models.Model):
 #     ]
 #     DEPARTMENT_CHOICES = [
         
-#         ('liver', 'liver'),
-#         ('kidney', 'kidney'),
+#         ('كبد', 'كبد'),
+#         ('كلى', 'كلى'),
         
     
 #     ]
@@ -631,7 +574,7 @@ class OrganMatching(models.Model):
 #     department = models.CharField(
 #         max_length=50,
 #         choices=DEPARTMENT_CHOICES,
-#         default='kidney'
+#         default='كلى'
 #     )
 
 #     hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, null=False)
@@ -682,8 +625,8 @@ class Surgery(models.Model):
     ]
     DEPARTMENT_CHOICES = [
         
-        ('liver', 'liver'),
-        ('kidney', 'kidney'),
+        ('كبد', 'كبد'),
+        ('كلى', 'كلى'),
         
     
     ]
@@ -694,7 +637,7 @@ class Surgery(models.Model):
     department = models.CharField(
         max_length=50,
         choices=DEPARTMENT_CHOICES,
-        default='kidney'
+        default='كلى'
     )
 
     hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, null=False)
@@ -740,12 +683,8 @@ class MRIReport(models.Model):
     patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mri_reports')
     # organ_type = models.CharField(max_length=50)
 
-    # before_scan = models.ImageField(upload_to='mri/before/', null=True, blank=True)
-    # after_scan = models.ImageField(upload_to='mri/after/', null=True, blank=True)
-    before_scan = models.FileField(upload_to='mri/before/', null=True, blank=True)  # ✅ مش ImageField
+    before_scan = models.FileField(upload_to='mri/before/', null=True, blank=True)
     after_scan = models.FileField(upload_to='mri/after/', null=True, blank=True)
-    nlp_report = models.FileField(upload_to='mri/nlp/', null=True, blank=True)  # ✅
-
 
     ai_result = models.TextField(null=True, blank=True)
     mismatch_alert = models.BooleanField(default=False)
@@ -775,6 +714,24 @@ class PatientPriority(models.Model):
     def __str__(self):
         return f"{self.patient} - {self.level}"
 
+
+class DonorHealthStatus(models.Model):
+    STATUS_CHOICES = [
+        ('ممتازة', 'ممتازة'),
+        ('جيدة جداً', 'جيدة جداً'),
+        ('جيدة', 'جيدة'),
+    ]
+    donor = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='health_status'
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    notes = models.TextField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.donor} - {self.status}"
 
 # Alerts
 class Alert(models.Model):
@@ -851,19 +808,40 @@ class SurgeryReport(models.Model):
     complications = models.TextField(null=True, blank=True)
     doctor_notes = models.TextField(null=True, blank=True)
 
-    blood_pressure = models.CharField(max_length=20, null=True, blank=True)
+    # blood_pressure = models.CharField(max_length=20, null=True, blank=True)
     recorded_at = models.DateTimeField(auto_now_add=True)
-    temperature_c = models.FloatField(null=True, blank=True)
-    heart_rate = models.PositiveIntegerField(null=True, blank=True)
-    respiratory_rate = models.PositiveIntegerField(null=True, blank=True)
-    oxygen_saturation = models.FloatField(null=True, blank=True)
+    # temperature_c = models.FloatField(null=True, blank=True)
+    # heart_rate = models.PositiveIntegerField(null=True, blank=True)
+    # respiratory_rate = models.PositiveIntegerField(null=True, blank=True)
+    # oxygen_saturation = models.FloatField(null=True, blank=True)
 
     report_file = models.FileField(upload_to='surgery_reports/files/', null=True, blank=True)
-    report_image = models.ImageField(upload_to='surgery_reports/images/', null=True, blank=True)
+    report_image = models.FileField(upload_to='surgery_reports/images/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Report for {self.surgery}"
+
+
+
+
+
+class VitalSigns(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='vital_signs'
+    )
+    blood_pressure = models.CharField(max_length=20, null=True, blank=True)
+    temperature_c = models.FloatField(null=True, blank=True)
+    heart_rate = models.PositiveIntegerField(null=True, blank=True)
+    respiratory_rate = models.PositiveIntegerField(null=True, blank=True)
+    oxygen_saturation = models.FloatField(null=True, blank=True)
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Vital Signs - {self.user}"
+    
 
 
 class Allergy(models.Model):
