@@ -1,3 +1,4 @@
+# serializers.py
 from rest_framework import serializers
 from .models import *
 from django.contrib.auth import authenticate
@@ -23,6 +24,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             'blood_type', 'gender', 'phone', 'hospital',
             'organ', 'medical_record_number', 'supervisor_doctor', 'email', 'city',
         ]
+        extra_kwargs = {
+        'hospital': {'required': True}
+        }
 
     def validate_national_id(self, value):
         if len(value) != 14 or not value.isdigit():
@@ -97,6 +101,59 @@ class HospitalRegisterSerializer(serializers.ModelSerializer):
         #     raise serializers.ValidationError("Doctor must belong to selected hospital")
         return data
 
+
+# login users AND hospitals
+
+# class UnifiedLoginSerializer(serializers.Serializer):
+#     identifier = serializers.CharField()
+#     password = serializers.CharField(write_only=True)
+
+#     def validate(self, data):
+#         identifier = data.get("identifier")
+#         password = data.get("password")
+
+#         if not identifier or not password:
+#             raise serializers.ValidationError({
+#                 "message": "الرجاء إدخال identifier و password"
+#             })
+
+#         # 🔹 لو فيه @ → Hospital
+#         if "@" in identifier:
+#             try:
+#                 hospital = Hospital.objects.get(email=identifier)
+#             except Hospital.DoesNotExist:
+#                 raise serializers.ValidationError({
+#                     "message": "المستشفى غير موجودة"
+#                 })
+
+#             if not hospital.check_password(password):
+#                 raise serializers.ValidationError({
+#                     "message": "بيانات المستشفى غير صحيحة"
+#                 })
+
+#             token, _ = HospitalToken.objects.get_or_create(hospital=hospital)
+
+#             data["type"] = "hospital"
+#             data["hospital"] = hospital
+#             data["token"] = token.key
+
+
+#         # 🔹 غير كده → User
+#         else:
+#             user = authenticate(username=identifier, password=password)
+
+#             if not user:
+#                 raise serializers.ValidationError({
+#                     "message": "بيانات المستخدم غير صحيحة"
+#                 })
+
+#             token, _ = Token.objects.get_or_create(user=user)
+
+#             data["type"] = "user"
+#             data["user"] = user
+#             data["token"] = token.key
+
+#         return data
 
 class UnifiedLoginSerializer(serializers.Serializer):
     identifier = serializers.CharField()
@@ -175,12 +232,7 @@ class UserMiniSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = [
-            'id', 'full_name', 'role', 'national_id', 'blood_type', 'gender', 
-            'medical_record_number', 'status',
-            'HLA_A_1', 'HLA_A_2', 'HLA_B_1', 'HLA_B_2', 'HLA_DR_1', 'HLA_DR_2',
-            'EBV_status', 'CMV_status', 'PRA',
-        ]
+        fields = ['id', 'full_name', 'role', 'national_id', 'blood_type', 'gender', 'medical_record_number', 'status']
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
@@ -309,7 +361,10 @@ class PatientPrioritySerializer(serializers.ModelSerializer):
     def get_patient_detail(self, obj):
         return {"id": obj.patient.id, "full_name": f"{obj.patient.first_name} {obj.patient.last_name}"}
 
-
+class DonorHealthStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DonorHealthStatus
+        fields = ['id', 'donor', 'status', 'notes', 'updated_at']
 # doctor
 class DoctorSerializer(serializers.ModelSerializer):
     hospital_detail = HospitalSerializer(source='hospital', read_only=True)
@@ -329,7 +384,7 @@ class MRIReportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MRIReport
-        fields = ['id', 'patient', 'patient_detail', 'before_scan', 'after_scan','nlp_report',
+        fields = ['id', 'patient', 'patient_detail', 'before_scan', 'after_scan',
                   'ai_result', 'mismatch_alert', 'created_at']
 
 
@@ -339,7 +394,6 @@ class SurgeryReportSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='surgery.doctor.name', read_only=True)
     hospital_name = serializers.CharField(source='surgery.hospital.name', read_only=True)
     surgery_detail = serializers.SerializerMethodField(read_only=True)  # بدل الـ nested كامل
-    vitals = serializers.SerializerMethodField(read_only=True)
 
     # اختيار الجراحة عند الإنشاء بالاسم
     surgery_number = serializers.SlugRelatedField(
@@ -376,23 +430,14 @@ class SurgeryReportSerializer(serializers.ModelSerializer):
             'report_file',
             'report_image',
             'created_at',
-            'blood_pressure',
-            'temperature_c',
-            'heart_rate',
-            'respiratory_rate',
-            'oxygen_saturation',
+            # 'blood_pressure',
+            # 'temperature_c',
+            # 'heart_rate',
+            # 'respiratory_rate',
+            # 'oxygen_saturation',
             'recorded_at',
-            'vitals',
 
         ]
-    def get_vitals(self, obj):
-        return [
-            {"key": "blood_pressure",    "label": "Blood Pressure",    "value": obj.blood_pressure,    "unit": "mmHg"},
-            {"key": "temperature_c",     "label": "Temperature",       "value": obj.temperature_c,     "unit": "°C"},
-            {"key": "heart_rate",        "label": "Heart Rate",        "value": obj.heart_rate,        "unit": "bpm"},
-            {"key": "respiratory_rate",  "label": "Respiratory Rate",  "value": obj.respiratory_rate,  "unit": "breaths/min"},
-            {"key": "oxygen_saturation", "label": "Oxygen Saturation", "value": obj.oxygen_saturation, "unit": "%"},
-        ]    
 
     def get_surgery_detail(self, obj):
         # ممكن تعرض معلومات مختصرة عن الجراحة بدل الـ nested serializer الكامل
@@ -413,7 +458,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'patient', 'patient_detail', 'doctor', 'doctor_detail',
             'hospital', 'hospital_detail', 'appointment_date', 'reason', 'status', 'created_at', 'appointment_time'
-
         ]
 
     def get_patient_detail(self, obj):
@@ -514,16 +558,16 @@ class UserSerializer(serializers.ModelSerializer):
     mri_reports = serializers.SerializerMethodField()
     surgery_reports = serializers.SerializerMethodField()
     priority = serializers.SerializerMethodField()
+    health_status = serializers.SerializerMethodField()
     allergies = serializers.SerializerMethodField()
     user_medicines = serializers.SerializerMethodField()
     alerts = serializers.SerializerMethodField()
     user_reports = serializers.SerializerMethodField()
+    vital_signs = serializers.SerializerMethodField()
     supervisor_doctor = serializers.PrimaryKeyRelatedField(
         queryset=Doctor.objects.all(),
         required=False
     )
-    CMV_status = serializers.SerializerMethodField()
-    EBV_status = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -533,10 +577,10 @@ class UserSerializer(serializers.ModelSerializer):
             'HLA_A_1', 'HLA_A_2', 'HLA_B_1', 'HLA_B_2', 'HLA_DR_1', 'HLA_DR_2',
             'PRA', 'CMV_status', 'EBV_status', 'supervisor_doctor', 'updated_at',
             'hospital', 'allergies', 'phone', 'city', 'email', 'user_medicines',
-            'is_active', 'is_staff', 'created_at', 'medical_record_number', 'surgeries',
+            'is_active', 'is_staff', 'created_at', 'medical_record_number', 'surgeries','vital_signs',
             # بيانات profile
             'organ_needed', 'organ_available', 'chronic_diseases', 'hospital_detail', 'supervisor_doctors_detail',
-            "appointments", "mri_reports", "surgery_reports", "priority", "alerts", 'user_reports','CMV_status', 'EBV_status',
+            "appointments", "mri_reports", "surgery_reports", "priority",'health_status', "alerts", 'user_reports'
         ]
         read_only_fields = ['bmi', 'created_at', 'updated_at']
 
@@ -546,30 +590,10 @@ class UserSerializer(serializers.ModelSerializer):
     # =========================
     # Patient fields
     # =========================
-    # def get_organ_needed(self, obj):
-    #     if obj.role == 'patient' and hasattr(obj, 'patient_profile'):
-    #         return obj.patient_profile.organ_needed
-    #     return None
-
     def get_organ_needed(self, obj):
         if obj.role == 'patient' and hasattr(obj, 'patient_profile'):
-            profile = obj.patient_profile
-            return {
-                "organ_needed": profile.organ_needed,
-                "recipient_id": profile.recipient_id,
-                "urgency_level": profile.urgency_level,
-                "waitlist_time_days": profile.waitlist_time_days,
-                "dialysis_duration_days": profile.dialysis_duration_days,
-                "MELD_score": profile.MELD_score,
-                "lung_severity_score": profile.lung_severity_score,
-            }
+            return obj.patient_profile.organ_needed
         return None
-    
-    def get_CMV_status(self, obj):
-        return "Positive" if obj.CMV_status else "Negative"
-
-    def get_EBV_status(self, obj):
-        return "Positive" if obj.EBV_status else "Negative"
 
     def get_chronic_diseases(self, obj):
         if obj.role == 'patient' and hasattr(obj, 'patient_profile'):
@@ -603,25 +627,16 @@ class UserSerializer(serializers.ModelSerializer):
             return None
 
         return []
-    
+
     def get_organ_available(self, obj):
         if obj.role == 'donor' and hasattr(obj, 'donor_profile'):
-            profile = obj.donor_profile
-
-            return {
-                "organ_available": profile.organ_available,
-                "donation_type": profile.donation_type,
-                "kdpi_score": profile.kdpi_score,
-                "donor_code": profile.donor_code,
-                "organ_full_or_partial": profile.organ_full_or_partial,
-            }
-
+            return obj.donor_profile.organ_available
         return None
-
-    # def get_organ_available(self, obj):
-    #     if obj.role == 'donor' and hasattr(obj, 'donor_profile'):
-    #         return obj.donor_profile.organ_available
-    #     return None
+    
+    def get_vital_signs(self, obj):
+        from .serializers import VitalSignsSerializer
+        qs = VitalSigns.objects.filter(user=obj)
+        return VitalSignsSerializer(qs, many=True).data
 
     def get_user_reports(self, obj):
         from .serializers import UserReportSerializer
@@ -645,20 +660,25 @@ class UserSerializer(serializers.ModelSerializer):
         return SurgeryReportSerializer(qs, many=True).data
 
     def get_priority(self, obj):
-        from .serializers import PatientPrioritySerializer
         try:
             priority = PatientPriority.objects.select_related('patient').get(patient=obj)
             return PatientPrioritySerializer(priority).data
         except PatientPriority.DoesNotExist:
             return None
+        
+    def get_health_status(self, obj):
+        if obj.role != 'donor':
+            return None
+        try:
+            return DonorHealthStatusSerializer(obj.health_status).data
+        except:
+            return None
 
     def get_alerts(self, obj):
-        from .serializers import AlertSerializer
         qs = Alert.objects.filter(user=obj)
         return AlertSerializer(qs, many=True).data
 
     def get_surgeries(self, obj):
-        from .serializers import SurgerySerializer
 
         if obj.role == 'patient':
             qs = Surgery.objects.filter(
@@ -694,62 +714,20 @@ class UserSerializer(serializers.ModelSerializer):
         return MedicineSerializer(qs, many=True).data
 
 
-# class PatientMedicalProfileSerializer(serializers.ModelSerializer):
-#     patient_detail = UserMiniSerializer(source='patient', read_only=True)
-#     chronic_diseases = serializers.SerializerMethodField()
-#     hospital_detail = serializers.SerializerMethodField()
-#     supervisor_doctor_detail = serializers.SerializerMethodField()  # ✅ صح
-
-#     class Meta:
-#         model = PatientMedicalProfile
-#         fields = [
-#             'patient_detail',
-#             'organ_needed',
-#             'chronic_diseases',
-#             'hospital_detail',
-#             'supervisor_doctor_detail'
-#         ]
-
-#     def get_chronic_diseases(self, obj):
-#         return [
-#             {"name": uc.disease.name, "severity": uc.severity}
-#             for uc in obj.patient.chronic_diseases.all()
-#         ]
-
-#     def get_hospital_detail(self, obj):
-#         if obj.patient.hospital:
-#             return HospitalSerializer(obj.patient.hospital).data
-#         return None
-
-#     def get_supervisor_doctor_detail(self, obj):
-#         if obj.patient.supervisor_doctor:
-#             return DoctorSerializer(obj.patient.supervisor_doctor).data
-#         return None
-
-
-
-
-
 class PatientMedicalProfileSerializer(serializers.ModelSerializer):
     patient_detail = UserMiniSerializer(source='patient', read_only=True)
     chronic_diseases = serializers.SerializerMethodField()
     hospital_detail = serializers.SerializerMethodField()
-    supervisor_doctor_detail = serializers.SerializerMethodField()
+    supervisor_doctor_detail = serializers.SerializerMethodField()  # ✅ صح
 
     class Meta:
         model = PatientMedicalProfile
         fields = [
             'patient_detail',
             'organ_needed',
-            'recipient_id',          
-            'urgency_level',         
-            'waitlist_time_days',    
-            'dialysis_duration_days',
-            'MELD_score',            
-            'lung_severity_score',   
             'chronic_diseases',
             'hospital_detail',
-            'supervisor_doctor_detail',
+            'supervisor_doctor_detail'
         ]
 
     def get_chronic_diseases(self, obj):
@@ -769,16 +747,6 @@ class PatientMedicalProfileSerializer(serializers.ModelSerializer):
         return None
 
 
-
-
-
-
-
-
-
-
-
-
 class DonorMedicalProfileSerializer(serializers.ModelSerializer):
     donor_detail = UserMiniSerializer(source='donor', read_only=True)
     chronic_diseases = serializers.SerializerMethodField()
@@ -795,10 +763,6 @@ class DonorMedicalProfileSerializer(serializers.ModelSerializer):
             'chronic_diseases',
             'hospital_detail',
             'supervisor_doctor_detail',
-            'donation_type',
-            'kdpi_score',
-            'organ_full_or_partial',
-            'donor_code',
         ]
 
     def get_chronic_diseases(self, obj):
@@ -816,7 +780,6 @@ class DonorMedicalProfileSerializer(serializers.ModelSerializer):
         if obj.donor.supervisor_doctor:
             return DoctorSerializer(obj.donor.supervisor_doctor).data
         return None
-    
 
 
 # hospital
@@ -1112,6 +1075,22 @@ class MinistryAlertSerializer(serializers.ModelSerializer):
             'ALERT_Status',
             'sender_hospital'
         ]
+
+
+
+
+
+class VitalSignsSerializer(serializers.ModelSerializer):
+    user_detail = UserMiniSerializer(source='user', read_only=True)
+
+    class Meta:
+        model = VitalSigns
+        fields = [
+            'id', 'user', 'user_detail', 'blood_pressure',
+            'temperature_c', 'heart_rate', 'respiratory_rate',
+            'oxygen_saturation', 'recorded_at'
+        ]
+
 
 
 
